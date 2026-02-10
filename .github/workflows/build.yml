@@ -1,4 +1,4 @@
-name: Build ZenSei APK
+name: Build ZenSei Flutter APK
 on:
   push:
     branches: [ main, master ]
@@ -6,19 +6,37 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      # Using the Master version to fix permission/user errors
-      - name: Build with Buildozer
-        uses: ArtemSBulgakov/buildozer-action@v1
-        id: buildozer
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
-          workdir: .
-          buildozer_version: master
+          channel: 'stable'
+          
+      - name: Create Project Skeleton
+        run: |
+          # 1. Create a temp project to get the structure
+          flutter create temp_app
+          
+          # 2. Move the structure to root, keeping our custom files
+          mv temp_app/* .
+          mv temp_app/.* . 2>/dev/null || true
+          rm -rf temp_app
+
+      - name: Inject Permissions
+        run: |
+          # Inject INTERNET and STORAGE permissions into the Android Manifest
+          sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>\n    <application|' android/app/src/main/AndroidManifest.xml
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build APK
+        run: flutter build apk --release --no-shrink
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: zensei-package
-          path: bin/*.apk
+          name: zensei-flutter-release
+          path: build/app/outputs/flutter-apk/app-release.apk
           
