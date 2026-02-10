@@ -13,8 +13,6 @@ dependencies:
   just_audio: ^0.9.36
   # Storage/Settings
   shared_preferences: ^2.2.2
-  # Glass UI
-  ui: ^0.1.0
   # Networking
   http: ^1.2.0
   # Permissions
