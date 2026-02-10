@@ -15,28 +15,37 @@ from kivy.core.audio import SoundLoader
 from kivy.core.window import Window
 from kivy.core.clipboard import Clipboard
 from kivy.graphics import Color, RoundedRectangle, Line, Rectangle
+from kivy.utils import platform
 from kivy.properties import StringProperty
+from kivy.uix.scrollview import ScrollView
 
-# 1. OLED Black
+# 1. OLED Black Background
 Window.clearcolor = (0, 0, 0, 1)
 
-# 2. Crash-Proof Storage (No Android Imports)
-# We save directly to the folder where the script is running.
+# 2. Crash-Proof Storage Path
+# We avoid complex permission requests here to prevent startup crashes.
+# The Buildozer spec handles the permission declaration.
 DEFAULT_STORAGE = os.path.join(os.getcwd(), 'ZenSei_Music')
-if not os.path.exists(DEFAULT_STORAGE):
-    try:
-        os.makedirs(DEFAULT_STORAGE)
-    except:
-        pass
+if platform == 'android':
+    from android.storage import primary_external_storage_path
+    DEFAULT_STORAGE = os.path.join(primary_external_storage_path(), 'ZenSei_Music')
 
-# 3. Database
-def get_db_path(): return os.path.join(DEFAULT_STORAGE, 'zensei_platinum.db')
+if not os.path.exists(DEFAULT_STORAGE):
+    try: os.makedirs(DEFAULT_STORAGE)
+    except: pass
+
+# 3. Database Setup
+def get_db_path(): 
+    return os.path.join(DEFAULT_STORAGE, 'zensei_ultimate.db')
+
 def init_db():
     try:
         conn = sqlite3.connect(get_db_path(), check_same_thread=False)
         cur = conn.cursor()
         cur.execute('''CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)''')
         cur.execute('''CREATE TABLE IF NOT EXISTS tracks (id TEXT PRIMARY KEY, name TEXT, art TEXT, is_local INTEGER)''')
+        
+        # Default Bridge URL check
         cur.execute("SELECT value FROM settings WHERE key='bridge_url'")
         if not cur.fetchone():
             cur.execute("INSERT INTO settings VALUES ('bridge_url', 'https://script.google.com/macros/s/AKfycbx5yN9YWgHn1NjLHvjoRX1qQ1tOdH3RbTiBLlRUw4XPsYM96yVP5TIDz6OZLyeiKFfa/exec')")
@@ -44,14 +53,16 @@ def init_db():
         conn.close()
     except: pass
 
-# 4. Visual Components
+# 4. Visual Components (Glassmorphism)
 class GlassPanel(BoxLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.padding = 20
         with self.canvas.before:
-            Color(1, 1, 1, 0.05)
-            self.rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[20])
+            Color(0, 0, 0, 0.6) # Dark tint for readability
+            self.rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[20,])
+            Color(1, 1, 1, 0.1) # Subtle white border
+            Line(rounded_rectangle=(self.x, self.y, self.width, self.height, 20), width=1.5)
         self.bind(pos=self.update_rect, size=self.update_rect)
     def update_rect(self, *args):
         self.rect.pos = self.pos
@@ -70,14 +81,18 @@ class GlassButton(Button):
         self.canvas.after.clear()
         with self.canvas.after:
             Color(*self.bg_color)
-            RoundedRectangle(pos=self.pos, size=self.size, radius=[15])
+            RoundedRectangle(pos=self.pos, size=self.size, radius=[15,])
+            
+            # Icon Drawing Logic
             if self.icon_type:
                 if self.icon_type == "repeat_one": Color(0, 0.8, 1, 1)
                 elif self.icon_type == "repeat_all": Color(0, 1, 0.5, 1)
-                elif self.icon_type == "pause": Color(1, 0.8, 0.2, 1) # Gold for pause
+                elif self.icon_type == "pause": Color(1, 0.8, 0.2, 1)
+                elif self.icon_type == "heart": Color(1, 0.4, 0.4, 1)
                 else: Color(1, 1, 1, 0.9)
                 
                 cx, cy = self.center; s = min(self.width, self.height) * 0.25
+                
                 if self.icon_type == "play":
                     Line(points=[cx-s/2, cy+s, cx-s/2, cy-s, cx+s, cy], close=True, width=2)
                 elif self.icon_type == "pause":
@@ -145,11 +160,10 @@ class ZenSeiApp(App):
         Clock.schedule_once(lambda dt: setattr(self.sm, 'current', 'main'), 3.5)
         return s
 
-    # --- SCREEN 2: MAIN ---
+    # --- SCREEN 2: MAIN PLAYER ---
     def build_main(self):
         s = BackgroundScreen(name='main')
         
-        # Header (Top Anchor)
         top = AnchorLayout(anchor_x='center', anchor_y='top', padding=[20, 60, 20, 0])
         self.marquee_box = GlassPanel(size_hint=(0.95, None), height=140)
         self.marquee_lbl = Label(text="ZENSEI • READY", font_size='22sp', bold=True)
@@ -158,16 +172,13 @@ class ZenSeiApp(App):
         s.add_widget(top)
         Clock.schedule_interval(self.scroll_text, 0.03)
 
-        # Controls (Bottom Anchor)
         bot = AnchorLayout(anchor_x='center', anchor_y='bottom', padding=[20, 0, 20, 30])
         panel = GlassPanel(orientation='vertical', size_hint=(0.95, None), height=550, spacing=20)
         
-        # Seeker
         self.bar = Slider(min=0, max=100, value=0, cursor_size=(50, 50), value_track=True, value_track_color=(0.2, 0.8, 1, 1))
         self.bar.bind(on_touch_down=self.seek_start, on_touch_up=self.seek_end)
         panel.add_widget(self.bar)
         
-        # Grid Buttons
         grid = GridLayout(cols=5, spacing=15, size_hint_y=None, height=120)
         self.btn_rep = GlassButton("repeat", on_release=self.toggle_repeat)
         self.btn_play = GlassButton("play", on_release=self.toggle_play)
@@ -179,7 +190,7 @@ class ZenSeiApp(App):
         grid.add_widget(GlassButton("library", on_release=lambda x: setattr(self.sm, 'current', 'library')))
         panel.add_widget(grid)
         
-        # EQ Visuals (Fixed Syntax)
+        # EQ Visuals
         self.eq_box = BoxLayout(spacing=5, size_hint_y=None, height=60)
         self.bars = []
         for _ in range(20):
@@ -192,7 +203,6 @@ class ZenSeiApp(App):
         panel.add_widget(self.eq_box)
         Clock.schedule_interval(self.anim_eq, 0.1)
 
-        # Settings Button
         set_btn = GlassButton(text="SETTINGS", size_hint=(None, None), size=(200, 50), pos_hint={'center_x': 0.5})
         set_btn.bind(on_release=lambda x: setattr(self.sm, 'current', 'settings'))
         panel.add_widget(set_btn)
@@ -279,32 +289,41 @@ class ZenSeiApp(App):
         s.add_widget(anc)
         return s
 
-    # --- SCREEN 6: DRIVE SETUP ---
+    # --- SCREEN 6: DRIVE SETUP (SCROLL FIX) ---
     def build_drive_setup(self):
         s = BackgroundScreen(name='drive_setup')
         root = BoxLayout(orientation='vertical', padding=[20, 50, 20, 20], spacing=10)
         
-        # Instructions
-        instr_box = GlassPanel(orientation='vertical', size_hint_y=0.4, spacing=5)
-        instr_box.add_widget(Label(text="SETUP INSTRUCTIONS", font_size='22sp', bold=True, size_hint_y=None, height=40))
-        txt = "1. Create folder 'ZenSei_Music' in Google Drive.\n2. Upload MP3s.\n3. Go to script.google.com -> New Project.\n4. Paste the code below & Save.\n5. Click Deploy -> New Deployment.\n6. Type: Web App -> Access: Anyone.\n7. Copy URL -> ZenSei Settings."
-        instr_label = Label(text=txt, halign='left', valign='top')
-        instr_label.bind(size=instr_label.setter('text_size'))
-        instr_box.add_widget(instr_label)
-        root.add_widget(instr_box)
+        # 1. Scrollable Instructions
+        instr_sv = ScrollView(size_hint_y=0.45)
+        instr_box = GlassPanel(orientation='vertical', size_hint_y=None, spacing=5)
+        instr_box.bind(minimum_height=instr_box.setter('height'))
         
-        # Code Box
+        instr_box.add_widget(Label(text="SETUP INSTRUCTIONS", font_size='22sp', bold=True, size_hint_y=None, height=40))
+        
+        txt = "1. Create folder 'ZenSei_Music' in Google Drive.\n2. Upload MP3s.\n3. Go to script.google.com -> New Project.\n4. Paste the code below & Save.\n5. Click Deploy -> New Deployment.\n6. Type: Web App -> Access: Anyone.\n7. Copy URL -> ZenSei Settings."
+        instr_label = Label(text=txt, halign='left', valign='top', size_hint_y=None)
+        instr_label.bind(width=lambda *x: instr_label.setter('text_size')(instr_label, (instr_label.width, None)),
+                         texture_size=lambda *x: instr_label.setter('height')(instr_label, instr_label.texture_size[1]))
+        
+        instr_box.add_widget(instr_label)
+        instr_sv.add_widget(instr_box)
+        root.add_widget(instr_sv)
+        
+        # 2. Code Box
         code = "function doGet() {\n  var f = DriveApp.getFoldersByName('ZenSei_Music').next();\n  var files = f.getFiles();\n  var list = [];\n  while (files.hasNext()) {\n    var file = files.next();\n    list.push({id: file.getId(), name: file.getName()});\n  }\n  return ContentService.createTextOutput(JSON.stringify(list)).setMimeType(ContentService.MimeType.JSON);\n}"
-        code_box = GlassPanel(orientation='vertical', size_hint_y=0.45, spacing=5)
+        code_box = GlassPanel(orientation='vertical', size_hint_y=0.4, spacing=5)
         code_box.add_widget(TextInput(text=code, readonly=True, background_color=(0,0,0,0.3), foreground_color=(0.5,1,0.5,1)))
         
         copy_btn = GlassButton(text="COPY CODE", size_hint_y=None, height=50, bg_color=(0.2, 0.8, 1, 0.3))
         copy_btn.bind(on_release=lambda x: Clipboard.copy(code))
         code_box.add_widget(copy_btn)
+        root.add_widget(code_box)
         
         back = GlassButton(text="BACK", size_hint_y=None, height=60)
         back.bind(on_release=lambda x: setattr(self.sm, 'current', 'advanced'))
         root.add_widget(back)
+        
         s.add_widget(root)
         return s
 
@@ -410,29 +429,4 @@ class ZenSeiApp(App):
                 art = 'https://images.unsplash.com/photo-1494232410401-ad00d5433cfa'
                 try:
                     m = requests.get(f"https://itunes.apple.com/search?term={clean}&limit=1&entity=song").json()
-                    if m['resultCount'] > 0: art = m['results'][0]['artworkUrl100'].replace('100x100bb.jpg', '1000x1000bb.jpg')
-                except: pass
-                cur.execute("INSERT OR IGNORE INTO tracks VALUES (?, ?, ?, 0)", (x['id'], x['name'], art))
-            conn.commit()
-            conn.close()
-            Clock.schedule_once(self.refresh_lib)
-        except: pass
-
-    @mainthread
-    def refresh_lib(self, dt):
-        self.lib_grid.clear_widgets()
-        conn = sqlite3.connect(get_db_path())
-        cur = conn.cursor()
-        cur.execute("SELECT * FROM tracks")
-        for t in cur.fetchall():
-            btn = GlassButton(text=t[1], size_hint_y=None, height=80, bg_color=(1,1,1,0.05))
-            btn.bind(on_release=lambda x, track=t: self.play_track(track))
-            self.lib_grid.add_widget(btn)
-        conn.close()
-
-    @mainthread
-    def play_track(self, track):
-        if self.sound: self.sound.stop()
-        fid, name, art, is_local = track
-        self.marquee_lbl.text = f"{name}   •   {name}"
-        self.current_bg 
+                    if m['resultCount'] > 0: art = m['results'][0]['artworkUrl100'].replace('100x100bb.
