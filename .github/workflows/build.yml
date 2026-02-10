@@ -8,15 +8,13 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      # The "Container" Action.
-      # It downloads a pre-made computer with all Android tools installed.
-      # It creates the APK without asking for licenses.
+      # FIX: Switch to 'master' version to fix the "invalid user" crash.
       - name: Build with Buildozer
         uses: ArtemSBulgakov/buildozer-action@v1
         id: buildozer
         with:
           workdir: .
-          buildozer_version: stable
+          buildozer_version: master
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
