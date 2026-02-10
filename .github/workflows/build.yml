@@ -24,7 +24,7 @@ jobs:
           mv main.dart ~/safe_keep/
           mv icon.png ~/safe_keep/ 2>/dev/null || true
           
-          echo "Nuking old Android folder to force regeneration..."
+          echo "Nuking old Android folder..."
           rm -rf android
           rm -rf ios
           rm -rf web
@@ -41,25 +41,25 @@ jobs:
           mv ~/safe_keep/icon.png . 2>/dev/null || true
           rm -rf ~/safe_keep
           
-          # 4. VERIFY FILES EXIST
-          if [ ! -f "android/app/build.gradle" ]; then
-            echo "CRITICAL ERROR: android/app/build.gradle was not generated!"
+          # 4. VERIFY FILES (Check for the new Kotlin .kts file)
+          if [ ! -f "android/app/build.gradle.kts" ]; then
+            echo "CRITICAL ERROR: android/app/build.gradle.kts was not generated!"
             exit 1
           fi
 
-          # 5. APPLY FIXES (Java Version, App Name, Permissions)
+          # 5. APPLY FIXES
           echo "Applying patches..."
 
-          # Fix A: Force Java 17 Compatibility (Fixes the 'Inconsistent JVM' error)
-          # We insert the compile options right before 'defaultConfig'
+          # Fix A: Force Java 17 (Kotlin DSL Syntax)
+          # Note: We use '=' signs now because it is Kotlin
           sed -i '/defaultConfig {/i \
             compileOptions {\n\
-                sourceCompatibility JavaVersion.VERSION_17\n\
-                targetCompatibility JavaVersion.VERSION_17\n\
+                sourceCompatibility = JavaVersion.VERSION_17\n\
+                targetCompatibility = JavaVersion.VERSION_17\n\
             }\n\
             kotlinOptions {\n\
                 jvmTarget = "17"\n\
-            }' android/app/build.gradle
+            }' android/app/build.gradle.kts
 
           # Fix B: Inject Permissions (Manifest)
           sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>\n    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>\n    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>\n    <application|' android/app/src/main/AndroidManifest.xml
@@ -68,8 +68,8 @@ jobs:
           sed -i 's/android:label="zensei_player"/android:label="ZenSei"/g' android/app/src/main/AndroidManifest.xml
 
           # Fix D: Repair 'on_audio_query' Plugin (Namespace Error)
-          # We find the file in the cache and patch it
           flutter pub get
+          # The plugin file is still old Groovy, so we look for build.gradle (no .kts)
           FILE=$(find ~/.pub-cache/hosted/pub.dev -name "build.gradle" | grep "on_audio_query_android")
           if [ -f "$FILE" ]; then
              echo "Patching Plugin at $FILE"
