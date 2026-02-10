@@ -23,7 +23,7 @@ jobs:
           mv main.dart safe_keep/
           mv icon.png safe_keep/ 2>/dev/null || true
           
-          # Generate Project (Internal name must be snake_case)
+          # Generate Project
           flutter create . --org org.zensei --project-name zensei_player
           
           # Restore files
@@ -32,23 +32,26 @@ jobs:
           mv safe_keep/main.dart lib/main.dart
           mv safe_keep/icon.png . 2>/dev/null || true
           rm -rf safe_keep
-          
-          # 1. Inject Permissions
+
+      - name: Apply All Fixes (Permissions, Name, Java Version)
+        run: |
+          # 1. Inject Permissions (Internet, Storage, Audio)
           sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>\n    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>\n    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>\n    <application|' android/app/src/main/AndroidManifest.xml
           
           # 2. FORCE APP NAME CHANGE (zensei_player -> ZenSei)
           sed -i 's/android:label="zensei_player"/android:label="ZenSei"/g' android/app/src/main/AndroidManifest.xml
 
+          # 3. FIX JAVA VERSION (Force Java 17 for both Java and Kotlin compilers)
+          # We inject the compileOptions block right after 'android {'
+          sed -i 's/android {/android {\n    compileOptions {\n        sourceCompatibility JavaVersion.VERSION_17\n        targetCompatibility JavaVersion.VERSION_17\n    }\n    kotlinOptions {\n        jvmTarget = "17"\n    }/' android/app/build.gradle
+
       - name: Install Dependencies
         run: flutter pub get
 
-      # --- THE FIX IS HERE ---
       - name: Fix Broken Plugin (Namespace Error)
         run: |
-          # Find the broken build.gradle file for on_audio_query inside the cache
+          # This fixes the on_audio_query plugin error from the previous step
           FILE=$(find ~/.pub-cache/hosted/pub.dev -name "build.gradle" | grep "on_audio_query_android")
-          
-          # Inject the missing namespace line
           if [ -f "$FILE" ]; then
             echo "Patching $FILE..."
             sed -i 's/android {/android { namespace "com.lucasjosino.on_audio_query"/' "$FILE"
@@ -67,4 +70,3 @@ jobs:
         with:
           name: ZenSei
           path: build/app/outputs/flutter-apk/app-release.apk
-          
