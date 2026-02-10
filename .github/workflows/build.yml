@@ -8,7 +8,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      # FIX: Force Python 3.9 to prevent "FancyURLopener" crash
+      # FIX 1: Force Python 3.9 (Stable)
+      # Prevents the "FancyURLopener" crash caused by Python 3.14
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
@@ -24,15 +25,17 @@ jobs:
             libavformat-dev libavcodec-dev zlib1g-dev \
             libgstreamer1.0 gstreamer1.0-plugins-base \
             gstreamer1.0-plugins-good libffi-dev \
-            libsqlite3-dev libssl-dev
+            libsqlite3-dev libssl-dev autoconf libtool
 
       - name: Install Buildozer
         run: pip install buildozer cython==0.29.33
 
+      # FIX 2: Auto-Accept Licenses
+      # The "yes |" command automatically types "y" for every question
       - name: Build with Buildozer
         run: |
           export BUILDOZER_WARN_ON_ROOT=0
-          buildozer android debug
+          yes | buildozer android debug
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
