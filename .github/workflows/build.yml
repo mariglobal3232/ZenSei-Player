@@ -8,7 +8,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      # FIX: Switch to 'master' version to fix the "invalid user" crash.
+      # Using the Master version to fix permission/user errors
       - name: Build with Buildozer
         uses: ArtemSBulgakov/buildozer-action@v1
         id: buildozer
