@@ -8,13 +8,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      # Setup Python environment
+      # FIX: Force Python 3.9 to prevent "FancyURLopener" crash
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.x'
+          python-version: '3.9'
 
-      # Install Buildozer dependencies
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -27,17 +26,14 @@ jobs:
             gstreamer1.0-plugins-good libffi-dev \
             libsqlite3-dev libssl-dev
 
-      # Install Buildozer
       - name: Install Buildozer
         run: pip install buildozer cython==0.29.33
 
-      # Build the APK (forcing root warning off)
       - name: Build with Buildozer
         run: |
           export BUILDOZER_WARN_ON_ROOT=0
           buildozer android debug
 
-      # Upload the APK to GitHub
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
