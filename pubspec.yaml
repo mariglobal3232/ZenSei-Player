@@ -9,16 +9,35 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # Audio Engine
   just_audio: ^0.9.36
+  # Storage/Settings
   shared_preferences: ^2.2.2
-  permission_handler: ^11.3.0
-  fluttertoast: ^8.2.4
+  # Glass UI
+  ui: ^0.1.0
+  # Networking
   http: ^1.2.0
+  # Permissions
+  permission_handler: ^11.3.0
+  # Toast Messages
+  fluttertoast: ^8.2.4
+  # Scrolling Text
+  marquee: ^2.2.3
+  # Local Music Scanning
+  on_audio_query: ^2.9.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  # Icon Generator
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "icon.png"
+  min_sdk_android: 21
 
 flutter:
   uses-material-design: true
