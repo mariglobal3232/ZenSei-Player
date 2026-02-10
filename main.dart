@@ -232,7 +232,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            Padding(padding: const EdgeInsets.all(20), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text("LIBRARY", style: TextStyle(fontSize: 30, bold: true, color: Colors.white)), IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => Navigator.pop(context))])),
+            Padding(padding: const EdgeInsets.all(20), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text("LIBRARY", style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: Colors.white)), IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => Navigator.pop(context))])),
             Expanded(child: _loading ? const Center(child: CircularProgressIndicator(color: Colors.cyan)) : ListView.builder(itemCount: _tracks.length, itemBuilder: (ctx, i) {
               final t = _tracks[i];
               return ListTile(
