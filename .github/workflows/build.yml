@@ -8,38 +8,19 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      # FIX 1: Force Python 3.9 (Stable)
-      # Prevents the "FancyURLopener" crash caused by Python 3.14
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.9'
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            python3-pip build-essential git python3 python3-dev \
-            ffmpeg libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev \
-            libsdl2-ttf-dev libportmidi-dev libswscale-dev \
-            libavformat-dev libavcodec-dev zlib1g-dev \
-            libgstreamer1.0 gstreamer1.0-plugins-base \
-            gstreamer1.0-plugins-good libffi-dev \
-            libsqlite3-dev libssl-dev autoconf libtool
-
-      - name: Install Buildozer
-        run: pip install buildozer cython==0.29.33
-
-      # FIX 2: Auto-Accept Licenses
-      # The "yes |" command automatically types "y" for every question
+      # The "Container" Action.
+      # It downloads a pre-made computer with all Android tools installed.
+      # It creates the APK without asking for licenses.
       - name: Build with Buildozer
-        run: |
-          export BUILDOZER_WARN_ON_ROOT=0
-          yes | buildozer android debug
+        uses: ArtemSBulgakov/buildozer-action@v1
+        id: buildozer
+        with:
+          workdir: .
+          buildozer_version: stable
 
-      - name: Upload Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: zensei-apk
+          name: zensei-package
           path: bin/*.apk
           
