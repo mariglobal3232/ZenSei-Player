@@ -6,7 +6,7 @@ source.dir = .
 source.include_exts = py,png,jpg,kv,atlas,mp3,json
 version = 0.1
 
-# Note: We removed 'android' and 'jnius' from here because the container handles them.
+# Container handles dependencies. We just list the python packages.
 requirements = python3,kivy,requests,openssl,sqlite3
 
 orientation = portrait
@@ -16,6 +16,9 @@ android.permissions = INTERNET,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE
 android.api = 33
 android.minapi = 21
 android.private_storage = True
+
+# If you uploaded an icon.png, uncomment the line below:
+# icon.filename = icon.png
 
 [buildozer]
 log_level = 2
