@@ -1,5 +1,6 @@
 [app]
 title = ZenSei
+icon.filename = icon.png
 package.name = zensei
 package.domain = org.zensei
 source.dir = .
