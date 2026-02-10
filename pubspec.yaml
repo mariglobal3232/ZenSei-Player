@@ -9,18 +9,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  # The Audio Engine
   just_audio: ^0.9.36
-  # For saving the Drive URL
   shared_preferences: ^2.2.2
-  # For Glass Blur effects
-  ui: ^0.1.0
-  # For making web requests to Drive
-  http: ^1.2.0
-  # For permissions
   permission_handler: ^11.3.0
-  # For simple toast messages
   fluttertoast: ^8.2.4
+  http: ^1.2.0
 
 dev_dependencies:
   flutter_test:
