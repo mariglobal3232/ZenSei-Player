@@ -15,48 +15,65 @@ jobs:
         with:
           channel: 'stable'
           
-      - name: Setup Project Structure
+      - name: Generate Project & Apply Fixes
         run: |
-          mkdir safe_keep
-          # Save your custom files
-          mv pubspec.yaml safe_keep/
-          mv main.dart safe_keep/
-          mv icon.png safe_keep/ 2>/dev/null || true
+          # 1. CLEANUP & BACKUP
+          echo "Backing up custom files..."
+          mkdir -p ~/safe_keep
+          mv pubspec.yaml ~/safe_keep/
+          mv main.dart ~/safe_keep/
+          mv icon.png ~/safe_keep/ 2>/dev/null || true
           
-          # Generate Project
+          echo "Nuking old Android folder to force regeneration..."
+          rm -rf android
+          rm -rf ios
+          rm -rf web
+          rm -rf lib
+          
+          # 2. GENERATE NEW PROJECT
+          echo "Generating fresh Flutter project..."
           flutter create . --org org.zensei --project-name zensei_player
           
-          # Restore files
-          mv safe_keep/pubspec.yaml .
-          rm lib/main.dart
-          mv safe_keep/main.dart lib/main.dart
-          mv safe_keep/icon.png . 2>/dev/null || true
-          rm -rf safe_keep
-
-      - name: Apply All Fixes (Permissions, Name, Java Version)
-        run: |
-          # 1. Inject Permissions (Internet, Storage, Audio)
-          sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>\n    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>\n    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>\n    <application|' android/app/src/main/AndroidManifest.xml
+          # 3. RESTORE CUSTOM FILES
+          echo "Restoring custom code..."
+          mv ~/safe_keep/pubspec.yaml .
+          mv ~/safe_keep/main.dart lib/main.dart
+          mv ~/safe_keep/icon.png . 2>/dev/null || true
+          rm -rf ~/safe_keep
           
-          # 2. FORCE APP NAME CHANGE (zensei_player -> ZenSei)
+          # 4. VERIFY FILES EXIST
+          if [ ! -f "android/app/build.gradle" ]; then
+            echo "CRITICAL ERROR: android/app/build.gradle was not generated!"
+            exit 1
+          fi
+
+          # 5. APPLY FIXES (Java Version, App Name, Permissions)
+          echo "Applying patches..."
+
+          # Fix A: Force Java 17 Compatibility (Fixes the 'Inconsistent JVM' error)
+          # We insert the compile options right before 'defaultConfig'
+          sed -i '/defaultConfig {/i \
+            compileOptions {\n\
+                sourceCompatibility JavaVersion.VERSION_17\n\
+                targetCompatibility JavaVersion.VERSION_17\n\
+            }\n\
+            kotlinOptions {\n\
+                jvmTarget = "17"\n\
+            }' android/app/build.gradle
+
+          # Fix B: Inject Permissions (Manifest)
+          sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>\n    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>\n    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>\n    <application|' android/app/src/main/AndroidManifest.xml
+
+          # Fix C: Rename App to "ZenSei" (Manifest)
           sed -i 's/android:label="zensei_player"/android:label="ZenSei"/g' android/app/src/main/AndroidManifest.xml
 
-          # 3. FIX JAVA VERSION (Force Java 17 for both Java and Kotlin compilers)
-          # We inject the compileOptions block right after 'android {'
-          sed -i 's/android {/android {\n    compileOptions {\n        sourceCompatibility JavaVersion.VERSION_17\n        targetCompatibility JavaVersion.VERSION_17\n    }\n    kotlinOptions {\n        jvmTarget = "17"\n    }/' android/app/build.gradle
-
-      - name: Install Dependencies
-        run: flutter pub get
-
-      - name: Fix Broken Plugin (Namespace Error)
-        run: |
-          # This fixes the on_audio_query plugin error from the previous step
+          # Fix D: Repair 'on_audio_query' Plugin (Namespace Error)
+          # We find the file in the cache and patch it
+          flutter pub get
           FILE=$(find ~/.pub-cache/hosted/pub.dev -name "build.gradle" | grep "on_audio_query_android")
           if [ -f "$FILE" ]; then
-            echo "Patching $FILE..."
-            sed -i 's/android {/android { namespace "com.lucasjosino.on_audio_query"/' "$FILE"
-          else
-            echo "Plugin file not found, skipping patch."
+             echo "Patching Plugin at $FILE"
+             sed -i 's/android {/android { namespace "com.lucasjosino.on_audio_query"/' "$FILE"
           fi
 
       - name: Generate App Icon
@@ -70,3 +87,4 @@ jobs:
         with:
           name: ZenSei
           path: build/app/outputs/flutter-apk/app-release.apk
+          
